@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PocketBase Scaling with LibSQL - PoC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between items-center py-6">
+          <h1 class="text-3xl font-bold text-gray-900">
+            PocketBase Scaling with LibSQL
+          </h1>
+          <span
+            class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
+          >
+            Proof of Concept
+          </span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Overview Section -->
+      <section class="mb-12">
+        <div class="bg-white rounded-lg shadow-sm p-8">
+          <h2 class="text-2xl font-bold text-gray-900 mb-4">Overview</h2>
+          <p class="text-gray-600 text-lg leading-relaxed mb-6">
+            This PoC showcases how to horizontally scale PocketBase by
+            leveraging LibSQL's distributed database capabilities. The
+            architecture implements a primary-replica pattern with multiple
+            PocketBase instances connected to replicated databases, all fronted
+            by a load balancer.
+          </p>
+
+          <!-- Architecture Diagram Placeholder -->
+          <div
+            class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-8 border border-blue-200"
+          >
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Architecture Overview
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div class="text-center">
+                <div class="bg-blue-500 text-white rounded-lg p-4 mb-2">
+                  <h4 class="font-semibold">Primary DB</h4>
+                  <p class="text-sm">LibSQL Primary</p>
+                </div>
+                <div class="text-sm text-gray-600">Source of Truth</div>
+              </div>
+              <div class="text-center">
+                <div class="bg-green-500 text-white rounded-lg p-4 mb-2">
+                  <h4 class="font-semibold">Replicas</h4>
+                  <p class="text-sm">Multiple Instances</p>
+                </div>
+                <div class="text-sm text-gray-600">Read Replicas</div>
+              </div>
+              <div class="text-center">
+                <div class="bg-purple-500 text-white rounded-lg p-4 mb-2">
+                  <h4 class="font-semibold">Load Balancer</h4>
+                  <p class="text-sm">Nginx</p>
+                </div>
+                <div class="text-sm text-gray-600">Traffic Distribution</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Services Section -->
+      <section class="mb-12">
+        <div class="bg-white rounded-lg shadow-sm p-8">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6">Services</h2>
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+              <thead class="bg-gray-50">
+                <tr>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Service
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Port
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Description
+                  </th>
+                  <th
+                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                  >
+                    nginx
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    8089
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    Load balancer (main entry point)
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    >
+                      Active
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                  >
+                    pocketbase1
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    8090
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    PocketBase instance 1
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    >
+                      Active
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                  >
+                    pocketbase2
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    8091
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    PocketBase instance 2
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    >
+                      Active
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                  >
+                    sqld.primary
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    8080, 5001
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    Primary LibSQL database
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    >
+                      Active
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                  >
+                    sqld.replica1
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    8081, 5002
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    LibSQL replica 1
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    >
+                      Active
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                  >
+                    sqld.replica2
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    8082, 5003
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    LibSQL replica 2
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    >
+                      Active
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td
+                    class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                  >
+                    s3.minio
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    9000, 9001
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    MinIO S3-compatible storage
+                  </td>
+                  <td class="px-6 py-4 whitespace-nowrap">
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    >
+                      Active
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Key Features Section -->
+      <section class="mb-12">
+        <div class="bg-white rounded-lg shadow-sm p-8">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6">Key Features</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="bg-blue-50 rounded-lg p-6">
+              <div
+                class="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center mb-4"
+              >
+                <svg
+                  class="w-6 h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 7v10c0 2.21 1.79 4 4 4h8c2.21 0 4-1.79 4-4V7c0-2.21-1.79-4-4-4H8c-2.21 0-4 1.79-4 4z"
+                  ></path>
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                SQLite Compatibility
+              </h3>
+              <p class="text-gray-600">
+                Full compatibility with SQLite APIs and ecosystem
+              </p>
+            </div>
+
+            <div class="bg-green-50 rounded-lg p-6">
+              <div
+                class="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center mb-4"
+              >
+                <svg
+                  class="w-6 h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                  ></path>
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                Distributed Replication
+              </h3>
+              <p class="text-gray-600">
+                Built-in primary-replica replication system
+              </p>
+            </div>
+
+            <div class="bg-purple-50 rounded-lg p-6">
+              <div
+                class="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center mb-4"
+              >
+                <svg
+                  class="w-6 h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  ></path>
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                Edge Computing
+              </h3>
+              <p class="text-gray-600">
+                Optimized for edge deployments with low latency
+              </p>
+            </div>
+
+            <div class="bg-yellow-50 rounded-lg p-6">
+              <div
+                class="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center mb-4"
+              >
+                <svg
+                  class="w-6 h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                ACID Transactions
+              </h3>
+              <p class="text-gray-600">
+                Maintains ACID properties across distributed nodes
+              </p>
+            </div>
+
+            <div class="bg-red-50 rounded-lg p-6">
+              <div
+                class="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center mb-4"
+              >
+                <svg
+                  class="w-6 h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  ></path>
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                High Availability
+              </h3>
+              <p class="text-gray-600">
+                Automatic failover and health monitoring
+              </p>
+            </div>
+
+            <div class="bg-indigo-50 rounded-lg p-6">
+              <div
+                class="w-12 h-12 bg-indigo-500 rounded-lg flex items-center justify-center mb-4"
+              >
+                <svg
+                  class="w-6 h-6 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
+                  ></path>
+                </svg>
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 mb-2">
+                Load Balancing
+              </h3>
+              <p class="text-gray-600">
+                Traffic distribution across healthy instances
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Access Section -->
+      <section class="mb-12">
+        <div class="bg-white rounded-lg shadow-sm p-8">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6">Quick Access</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <a
+              href="/api/health"
+              class="block bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg p-4 hover:from-blue-600 hover:to-blue-700 transition-colors"
+            >
+              <h3 class="font-semibold mb-1">API Health Check</h3>
+              <p class="text-sm text-blue-100">Check system status</p>
+            </a>
+            <a
+              href="/_/"
+              class="block bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg p-4 hover:from-green-600 hover:to-green-700 transition-colors"
+            >
+              <h3 class="font-semibold mb-1">Admin Dashboard</h3>
+              <p class="text-sm text-green-100">PocketBase Admin Panel</p>
+            </a>
+            <a
+              href="http://localhost:9001"
+              target="_blank"
+              class="block bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-lg p-4 hover:from-purple-600 hover:to-purple-700 transition-colors"
+            >
+              <h3 class="font-semibold mb-1">MinIO Console</h3>
+              <p class="text-sm text-purple-100">S3 Storage Management</p>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Getting Started Section -->
+      <section>
+        <div class="bg-white rounded-lg shadow-sm p-8">
+          <h2 class="text-2xl font-bold text-gray-900 mb-6">Getting Started</h2>
+          <div class="space-y-4">
+            <div class="bg-gray-50 rounded-lg p-4">
+              <h3 class="font-semibold text-gray-900 mb-2">
+                1. Clone the repository
+              </h3>
+              <code class="text-sm text-gray-600 bg-white px-2 py-1 rounded"
+                >git clone &lt;your-repo-url&gt;</code
+              >
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4">
+              <h3 class="font-semibold text-gray-900 mb-2">
+                2. Start all services
+              </h3>
+              <code class="text-sm text-gray-600 bg-white px-2 py-1 rounded"
+                >docker-compose up -d</code
+              >
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4">
+              <h3 class="font-semibold text-gray-900 mb-2">
+                3. Verify the setup
+              </h3>
+              <code class="text-sm text-gray-600 bg-white px-2 py-1 rounded"
+                >curl http://localhost:8089/api/health</code
+              >
+            </div>
+          </div>
+
+          <div class="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 class="font-semibold text-blue-900 mb-2">📚 Documentation</h3>
+            <p class="text-blue-800 text-sm">
+              For complete setup instructions, architecture details, and
+              troubleshooting guides, please refer to the README.md file in the
+              repository.
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="text-center text-gray-500">
+          <p>
+            &copy; 2024 PocketBase LibSQL Scaling PoC. Built with LibSQL,
+            PocketBase, and Docker.
+          </p>
+          <div class="mt-4 space-x-4">
+            <a
+              href="https://github.com/tursodatabase/libsql"
+              target="_blank"
+              class="text-blue-600 hover:text-blue-800"
+              >LibSQL</a
+            >
+            <a
+              href="https://pocketbase.io"
+              target="_blank"
+              class="text-blue-600 hover:text-blue-800"
+              >PocketBase</a
+            >
+            <a
+              href="https://turso.tech"
+              target="_blank"
+              class="text-blue-600 hover:text-blue-800"
+              >Turso</a
+            >
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

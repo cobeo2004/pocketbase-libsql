@@ -14,32 +14,39 @@ flowchart TD
     A --> C("Replicate DB 2 in Pocketbase VM")
     A --> D("Replicate DB n... in Pocketbase VM")
 
-    B --> E("Pocketbase Instance 1")
-    B --> F("Pocketbase Instance 2")
-    B --> G("Pocketbase Instance n...")
+    B --> E("Pocketbase Instance 1 -> N")
 
-    C --> H("Pocketbase Instance 1")
-    C --> I("Pocketbase Instance 2")
-    C --> J("Pocketbase Instance n...")
+    C --> H("Pocketbase Instance 1 -> N")
 
-    D --> K("Pocketbase Instance 1")
-    D --> M("Pocketbase Instance 2")
-    D --> N("Pocketbase Instance n...")
+    D --> K("Pocketbase Instance 1 -> N")
 
-    O["Load Balancer<br/>(Nginx or your choice)"]
+    O[pb_hooks]
     E --> O
-    F --> O
-    G --> O
     H --> O
-    I --> O
-    J --> O
     K --> O
-    M --> O
-    N --> O
 
-    O --> P["Client 1"]
-    O --> Q["Client 2"]
-    O --> R["Client n..."]
+    F[pb_migrations]
+    E --> F
+    H --> F
+    K --> F
+
+    S["Load Balancer<br/>(Nginx or your choice)"]
+    E --> S
+    H --> S
+    K --> S
+
+    G[pb_public]
+    E --> G
+    H --> G
+    K --> G
+    T[S3]
+    E --> T
+    H --> T
+    K --> T
+
+    S --> P["Client 1"]
+    S --> Q["Client 2"]
+    S --> R["Client n..."]
 ```
 
 ### Key Components
@@ -48,7 +55,10 @@ flowchart TD
 2. **LibSQL Replica Databases**: Read replicas that synchronize with the primary
 3. **PocketBase Instances**: Multiple PocketBase servers connecting to replica databases
 4. **Load Balancer**: Nginx distributing traffic across PocketBase instances
-5. **MinIO S3**: Object storage for file uploads and static assets
+5. **pb_hooks**: Shared custom hooks for PocketBase
+6. **pb_public**: Shared public files for PocketBase
+7. **pb_migrations**: Shared migrations for PocketBase
+8. **MinIO S3**: Object storage for file uploads and static assets
 
 ## How LibSQL and sqld Work
 
@@ -65,9 +75,9 @@ This PoC leverages LibSQL's distributed architecture as described in the [LibSQL
 ### sqld Server Features
 
 - **HTTP API**: RESTful interface for database operations
-- **WebSocket Support**: Real-time data streaming capabilities
 - **Replication Protocol**: Efficient primary-replica synchronization
 - **Multi-tenancy**: Support for multiple databases per instance
+- **SSE Support**: Server-Sent Events for real-time data streaming
 
 ## Services
 
@@ -103,6 +113,10 @@ This PoC leverages LibSQL's distributed architecture as described in the [LibSQL
    mkdir -p data/libsql/{primary,replica1,replica2}
    mkdir -p data/minio
    mkdir -p pb_data_1 pb_data_2
+   mkdir -p pb_storage
+   mkdir -p pb_hooks
+   mkdir -p pb_public
+   mkdir -p pb_migrations
    mkdir -p conf
    ```
 
@@ -200,6 +214,10 @@ To add more instances:
        - sqld.replica3
      volumes:
        - ./pb_data_3:/app/pb_data
+       - ./pb_storage:/app/pb_data/storage # Comment this if you want to use the S3 storage
+       - ./pb_hooks:/app/pb_hooks
+       - ./pb_public:/app/pb_public
+       - ./pb_migrations:/app/pb_migrations
      restart: unless-stopped
    ```
 
@@ -246,6 +264,7 @@ docker stats
 
 - **LibSQL Data**: `./data/libsql/{primary,replica1,replica2}`
 - **PocketBase Data**: `./pb_data_1`, `./pb_data_2`
+- **PocketBase Storage**: `./pb_storage` (Not applicable if you use the S3 storage)
 - **MinIO Data**: `./data/minio`
 
 ## High Availability Features

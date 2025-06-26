@@ -69,7 +69,16 @@ services:
       - sqld.replica1
     volumes:
       - ./pb_data_1:/app/pb_data
+      - ./pb_storage:/app/pb_data/storage # Comment this if you want to use the S3 storage
+      - ./pb_hooks:/app/pb_hooks
+      - ./pb_public:/app/pb_public
+      - ./pb_migrations:/app/pb_migrations
     restart: unless-stopped
+    # develop:
+    #   watch:
+    #     - path: ./pb_hooks
+    #       action: sync+restart
+    #       target: /app/pb_hooks
   pocketbase2:
     build:
       context: .
@@ -83,7 +92,16 @@ services:
       - sqld.replica2
     volumes:
       - ./pb_data_2:/app/pb_data
+      - ./pb_hooks:/app/pb_hooks
+      - ./pb_storage:/app/pb_data/storage # Comment this if you want to use the S3 storage
+      - ./pb_public:/app/pb_public
+      - ./pb_migrations:/app/pb_migrations
     restart: unless-stopped
+    # develop:
+    #   watch:
+    #     - path: ./pb_hooks
+    #       action: sync+restart
+    #       target: /app/pb_hooks
 
   nginx:
     image: nginx:alpine
@@ -95,6 +113,11 @@ services:
       - pocketbase1
       - pocketbase2
     restart: unless-stopped
+    # develop:
+    #   watch:
+    #     - path: ./conf/nginx.conf
+    #       action: sync+restart
+    #       target: /etc/nginx/nginx.conf:ro
 
 networks:
   minio_networks:
