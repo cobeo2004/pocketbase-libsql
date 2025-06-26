@@ -39,7 +39,7 @@ flowchart TD
     E --> G
     H --> G
     K --> G
-    T[S3]
+    T[S3 or pb_public]
     E --> T
     H --> T
     K --> T
