@@ -1,6 +1,7 @@
 services:
   sqld.primary:
     image: ghcr.io/tursodatabase/libsql-server:latest
+    container_name: sqld.primary
     platform: linux/amd64
     ports:
       - "8080:8080"
@@ -12,6 +13,7 @@ services:
     restart: unless-stopped
   sqld.replica1:
     image: ghcr.io/tursodatabase/libsql-server:latest
+    container_name: sqld.replica1
     depends_on:
       - sqld.primary
     platform: linux/amd64
@@ -25,6 +27,7 @@ services:
       - ./data/libsql/replica1:/var/lib/sqld
   sqld.replica2:
     image: ghcr.io/tursodatabase/libsql-server:latest
+    container_name: sqld.replica2
     depends_on:
       - sqld.primary
     platform: linux/amd64
@@ -36,26 +39,26 @@ services:
       - SQLD_PRIMARY_URL=libsql://sqld.primary:5001
     volumes:
       - ./data/libsql/replica2:/var/lib/sqld
-  s3.minio:
-    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
-    container_name: s3.minio
-    restart: always
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: admin123
-    volumes:
-      - ./data/minio:/data
-    command: server /data --console-address ":9001"
-    networks:
-      - minio_networks
-    healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+  # s3.minio:
+  #   image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+  #   container_name: s3.minio
+  #   restart: always
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   environment:
+  #     MINIO_ROOT_USER: admin
+  #     MINIO_ROOT_PASSWORD: admin123
+  #   volumes:
+  #     - ./data/minio:/data
+  #   command: server /data --console-address ":9001"
+  #   networks:
+  #     - minio_networks
+  #   healthcheck:
+  #     test: ["CMD", "mc", "ready", "local"]
+  #     interval: 30s
+  #     timeout: 20s
+  #     retries: 3
   pocketbase1:
     build:
       context: .
@@ -63,6 +66,7 @@ services:
       args:
         DB_PATH: http://sqld.replica1:8080
         DB_AUTH_TOKEN: ${DB_AUTH_TOKEN:-}
+    container_name: pocketbase1
     ports:
       - "8090:8080"
     depends_on:
@@ -86,6 +90,7 @@ services:
       args:
         DB_PATH: http://sqld.replica2:8080
         DB_AUTH_TOKEN: ${DB_AUTH_TOKEN:-}
+    container_name: pocketbase2
     ports:
       - "8091:8080"
     depends_on:
@@ -105,6 +110,7 @@ services:
 
   nginx:
     image: nginx:alpine
+    container_name: nginx
     ports:
       - "8089:80"
     volumes:
@@ -118,11 +124,10 @@ services:
     #     - path: ./conf/nginx.conf
     #       action: sync+restart
     #       target: /etc/nginx/nginx.conf:ro
+# networks:
+#   minio_networks:
+#     driver: bridge
 
-networks:
-  minio_networks:
-    driver: bridge
-
-volumes:
-  minio_data:
-    driver: local
+# volumes:
+#   minio_data:
+#     driver: local
